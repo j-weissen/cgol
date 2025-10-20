@@ -200,6 +200,10 @@ void drawVisibleChunks(Camera2D camera, const ChunkDynamicArray cda) {
   }
 }
 
+void printGcid(GlobalCellId gcid) {
+  printf("Chunk(%d, %d), Cell(%d, %d)", gcid.chunkId.x, gcid.chunkId.y, gcid.cellId.x, gcid.cellId.y);
+}
+
 bool getCellStatus(ChunkDynamicArray cda, GlobalCellId gcid) {
   Chunk *chunk = cdaFind(cda, gcid.chunkId);
   if (chunk == NULL) return false; // chunk couldn't be found in the array => must be empty/dead
@@ -207,24 +211,28 @@ bool getCellStatus(ChunkDynamicArray cda, GlobalCellId gcid) {
 }
 
 GlobalCellId applyOffset(GlobalCellId gcid, int dx, int dy) {
-  int cellX = gcid.cellId.x + dx;
-  if (cellX < 0) {
-    gcid.chunkId.x--;
-    gcid.cellId.x += (CHUNK_SIZE + dx);
-  } else if (cellX >= CHUNK_SIZE) {
-    gcid.chunkId.x++;
-    gcid.cellId.x -= (CHUNK_SIZE + dx);
+  GlobalCellId n = (GlobalCellId){
+    .chunkId = gcid.chunkId,
+    .cellId = {
+      .x = gcid.cellId.x + dx,
+      .y = gcid.cellId.y + dy,
+    }};
+  if (n.cellId.x < 0) {
+    n.chunkId.x--;
+    n.cellId.x += (CHUNK_SIZE + dx);
+  } else if (n.cellId.x >= CHUNK_SIZE) {
+    n.chunkId.x++;
+    n.cellId.x -= (CHUNK_SIZE + dx);
   }
 
-  int cellY = gcid.cellId.y + dy;
-  if (cellY < 0) {
-    gcid.chunkId.y--;
-    gcid.cellId.y += (CHUNK_SIZE + dy);
-  } else if (cellY >= CHUNK_SIZE) {
-    gcid.chunkId.y++;
-    gcid.cellId.y -= (CHUNK_SIZE + dy);
+  if (n.cellId.y < 0) {
+    n.chunkId.y--;
+    n.cellId.y += (CHUNK_SIZE + dy);
+  } else if (n.cellId.y >= CHUNK_SIZE) {
+    n.chunkId.y++;
+    n.cellId.y -= (CHUNK_SIZE + dy);
   }
-  return gcid;
+  return n;
 }
 
 unsigned int countNeighbors(ChunkDynamicArray cda, GlobalCellId gcid) {
@@ -233,7 +241,13 @@ unsigned int countNeighbors(ChunkDynamicArray cda, GlobalCellId gcid) {
     for (int dx = -1; dx <= 1; ++dx) {
       if (dx == 0 && dy == 0) continue;
       GlobalCellId neighbor = applyOffset(gcid, dx, dy);
-      if (getCellStatus(cda, neighbor)) neighbors++;
+      if (getCellStatus(cda, neighbor)) {
+        neighbors++;
+        printGcid(gcid);
+        printf(" -> ");
+        printGcid(neighbor);
+        printf(" -> true\n");
+      }
     }
   }
   return neighbors;
@@ -258,7 +272,7 @@ void calculateNextGen(ChunkDynamicArray cda) {
         }
         printf("%d", neighborsCount);
       }
-        printf("\n");
+      printf("\n");
     }
   }
 }
