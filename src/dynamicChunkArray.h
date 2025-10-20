@@ -1,0 +1,8 @@
+//
+// Created by Jonas on 19/10/2025.
+//
+
+#ifndef CGOL_DYNAMICCHUNKARRAY_H
+#define CGOL_DYNAMICCHUNKARRAY_H
+
+#endif //CGOL_DYNAMICCHUNKARRAY_H

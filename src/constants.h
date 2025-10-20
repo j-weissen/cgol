@@ -3,6 +3,7 @@
 
 #define WINDOW_WIDTH 1600
 #define WINDOW_HEIGHT 900
+#define TARGET_FPS 60
 #define GRID_THICKNESS 2
 #define CELL_WORLD_SIZE 50
 #define CHUNK_SIZE 16
