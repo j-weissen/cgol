@@ -25,8 +25,11 @@ set(PROJECT_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/src/") # Define PROJECT_INCLUDE t
 add_executable(${PROJECT_NAME}
         src/constants.h
         src/main.h
-        src/dynamicChunkArray.h
-        src/dynamicChunkArray.c)
+        src/types.h
+        src/cda.h
+        src/cda.c
+        src/utils.c
+        src/utils.h)
 target_sources(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDE})
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)

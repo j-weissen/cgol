@@ -1,3 +1,0 @@
-CompileFlags:
-  Add:
-    - -I/home/jonas/Programming/cgol/deps/raylib_install/include
