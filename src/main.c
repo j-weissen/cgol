@@ -28,6 +28,9 @@ void updateCamera(Camera2D *camera) {
 }
 
 Vector2i toVector2i(const Vector2 v) { return (Vector2i){(int)v.x, (int)v.y}; }
+Vector2i Vector2iAdd(const Vector2i v1, const Vector2i v2) {
+  return (Vector2i){v1.x + v2.x, v1.y + v2.y};
+}
 
 ChunkId getChunkId(Vector2 position) {
   const double x_scaled = position.x / (CHUNK_WORLD_SIZE * 1.0);
@@ -67,7 +70,6 @@ void drawGridInVisibleChunks(Camera2D camera) {
   }
 }
 
-
 typedef struct Cell {
   bool alive;
   bool alive_next_gen;
@@ -84,23 +86,28 @@ typedef struct ChunkDynamicArray {
   size_t capacity;
 } ChunkDynamicArray;
 
-bool cidEquals(ChunkId c1, ChunkId c2) {
-  return c1.x == c2.x && c1.y == c2.y;
-}
+typedef struct ChunkIdDynamicArray {
+  ChunkId *items;
+  size_t count;
+  size_t capacity;
+} ChunkIdDynamicArray;
+
+bool cidEquals(ChunkId c1, ChunkId c2) { return c1.x == c2.x && c1.y == c2.y; }
 //-----------------------------------------------------------------------------------------------------
-#define CDA_INITAL_CAPACITY 32
+#define DA_INITAL_CAPACITY 32
 
 ChunkDynamicArray cdaInit() {
-  Chunk *items = malloc(CDA_INITAL_CAPACITY * sizeof(Chunk));
+  Chunk *items = malloc(DA_INITAL_CAPACITY * sizeof(Chunk));
   if (items == NULL) {
     fprintf(stderr, "Couldn't allocate, buy more RAM\n");
     exit(1);
   }
-  memset(items, 0, CDA_INITAL_CAPACITY * sizeof(Chunk));
-  return (ChunkDynamicArray){items, 0, CDA_INITAL_CAPACITY};
+  memset(items, 0, DA_INITAL_CAPACITY * sizeof(Chunk));
+  return (ChunkDynamicArray){items, 0, DA_INITAL_CAPACITY};
 }
 
-void cdaEnsureCapacity(ChunkDynamicArray cda[static 1], const size_t desiredCapacity) {
+void cdaEnsureCapacity(ChunkDynamicArray cda[static 1],
+                       const size_t desiredCapacity) {
   if (desiredCapacity < cda->capacity) {
     return;
   }
@@ -119,11 +126,12 @@ void cdaEnsureCapacity(ChunkDynamicArray cda[static 1], const size_t desiredCapa
 Chunk *cdaAppend(ChunkDynamicArray cda[static 1], const Chunk chunk) {
   cdaEnsureCapacity(cda, cda->count + 1);
   cda->items[cda->count++] = chunk;
-  return &cda->items[cda->count-1];
+  return &cda->items[cda->count - 1];
 }
 
 Chunk *cdaFind(ChunkDynamicArray cda, ChunkId cid) {
-  // Using a hashmap would be the better solution here. For simplicity, I just used linear search.
+  // Using a hashmap would be the better solution here. For simplicity, I just
+  // used linear search.
   for (int i = 0; i < cda.count; ++i) {
     if (cidEquals(cda.items[i].cid, cid)) {
       return &cda.items[i];
@@ -142,16 +150,16 @@ void cdaFree(ChunkDynamicArray cda) {
 
 GlobalCellId getGlobalCellId(Vector2 position) {
   ChunkId chunkId = getChunkId(position);
-  Vector2 offsetFromChunkOrigin = Vector2Subtract(position, (Vector2){chunkId.x * CHUNK_WORLD_SIZE, chunkId.y * CHUNK_WORLD_SIZE});
+  Vector2 offsetFromChunkOrigin =
+      Vector2Subtract(position, (Vector2){chunkId.x * CHUNK_WORLD_SIZE,
+                                          chunkId.y * CHUNK_WORLD_SIZE});
   const double x_scaled = offsetFromChunkOrigin.x / (CELL_WORLD_SIZE * 1.0);
   const double y_scaled = offsetFromChunkOrigin.y / (CELL_WORLD_SIZE * 1.0);
   CellId cellId = (CellId){floor(x_scaled), floor(y_scaled)};
   return (GlobalCellId){chunkId, cellId};
 }
 
-size_t cellIdToIndex(CellId cid) {
-  return cid.x + cid.y * CHUNK_SIZE;
-}
+size_t cellIdToIndex(CellId cid) { return cid.x + cid.y * CHUNK_SIZE; }
 
 void toggleCellState(ChunkDynamicArray cda[static 1], GlobalCellId gcid) {
   Chunk *clickedChunk = cdaFind(*cda, gcid.chunkId);
@@ -168,17 +176,18 @@ void toggleCellState(ChunkDynamicArray cda[static 1], GlobalCellId gcid) {
   clickedChunk->cells[cellIdToIndex(gcid.cellId)].alive = !currentCellState;
 }
 
-Vector2 toVector2(Vector2i v) {
-  return (Vector2){(float)v.x, (float)v.y};
-}
+Vector2 toVector2(Vector2i v) { return (Vector2){(float)v.x, (float)v.y}; }
 
 void drawChunk(Chunk chunk) {
-  Vector2 chunkWorldOrigin = Vector2Scale(toVector2(chunk.cid), CHUNK_WORLD_SIZE);
+  Vector2 chunkWorldOrigin =
+      Vector2Scale(toVector2(chunk.cid), CHUNK_WORLD_SIZE);
   for (int y = 0; y < CHUNK_SIZE; ++y) {
     for (int x = 0; x < CHUNK_SIZE; ++x) {
-      if (chunk.cells[cellIdToIndex((CellId){x,y})].alive) {
-        //printf("(%d, %d)\n", x, y);
-        DrawRectangleV(Vector2Add(chunkWorldOrigin, (Vector2){x*CELL_WORLD_SIZE, y*CELL_WORLD_SIZE}), (Vector2){CELL_WORLD_SIZE, CELL_WORLD_SIZE}, RAYWHITE);
+      if (chunk.cells[cellIdToIndex((CellId){x, y})].alive) {
+        DrawRectangleV(
+            Vector2Add(chunkWorldOrigin,
+                       (Vector2){x * CELL_WORLD_SIZE, y * CELL_WORLD_SIZE}),
+            (Vector2){CELL_WORLD_SIZE, CELL_WORLD_SIZE}, RAYWHITE);
       }
     }
   }
@@ -193,30 +202,32 @@ void drawVisibleChunks(Camera2D camera, const ChunkDynamicArray cda) {
 
   for (int y = chunk_lu.y; y <= chunk_rd.y; ++y) {
     for (int x = chunk_lu.x; x <= chunk_rd.x; ++x) {
-      Chunk *chunk = cdaFind(cda, (ChunkId){x,y});
-      if (chunk == NULL) continue;
+      Chunk *chunk = cdaFind(cda, (ChunkId){x, y});
+      if (chunk == NULL)
+        continue;
       drawChunk(*chunk);
     }
   }
 }
 
 void printGcid(GlobalCellId gcid) {
-  printf("Chunk(%d, %d), Cell(%d, %d)", gcid.chunkId.x, gcid.chunkId.y, gcid.cellId.x, gcid.cellId.y);
+  printf("Chunk(%d, %d), Cell(%d, %d)", gcid.chunkId.x, gcid.chunkId.y,
+         gcid.cellId.x, gcid.cellId.y);
 }
 
 bool getCellStatus(ChunkDynamicArray cda, GlobalCellId gcid) {
   Chunk *chunk = cdaFind(cda, gcid.chunkId);
-  if (chunk == NULL) return false; // chunk couldn't be found in the array => must be empty/dead
+  if (chunk == NULL)
+    return false; // chunk couldn't be found in the array => must be empty/dead
   return chunk->cells[cellIdToIndex(gcid.cellId)].alive;
 }
 
 GlobalCellId applyOffset(GlobalCellId gcid, int dx, int dy) {
-  GlobalCellId n = (GlobalCellId){
-    .chunkId = gcid.chunkId,
-    .cellId = {
-      .x = gcid.cellId.x + dx,
-      .y = gcid.cellId.y + dy,
-    }};
+  GlobalCellId n = (GlobalCellId){.chunkId = gcid.chunkId,
+                                  .cellId = {
+                                      .x = gcid.cellId.x + dx,
+                                      .y = gcid.cellId.y + dy,
+                                  }};
   if (n.cellId.x < 0) {
     n.chunkId.x--;
     n.cellId.x += (CHUNK_SIZE + dx);
@@ -239,14 +250,11 @@ unsigned int countNeighbors(ChunkDynamicArray cda, GlobalCellId gcid) {
   unsigned int neighbors = 0;
   for (int dy = -1; dy <= 1; ++dy) {
     for (int dx = -1; dx <= 1; ++dx) {
-      if (dx == 0 && dy == 0) continue;
+      if (dx == 0 && dy == 0)
+        continue;
       GlobalCellId neighbor = applyOffset(gcid, dx, dy);
       if (getCellStatus(cda, neighbor)) {
         neighbors++;
-        printGcid(gcid);
-        printf(" -> ");
-        printGcid(neighbor);
-        printf(" -> true\n");
       }
     }
   }
@@ -261,7 +269,8 @@ void calculateNextGen(ChunkDynamicArray cda) {
   for (int chunkIndex = 0; chunkIndex < cda.count; ++chunkIndex) {
     for (int y = 0; y < CHUNK_SIZE; ++y) {
       for (int x = 0; x < CHUNK_SIZE; ++x) {
-        GlobalCellId gcid = (GlobalCellId){cda.items[chunkIndex].cid, (CellId){x, y}};
+        GlobalCellId gcid =
+            (GlobalCellId){cda.items[chunkIndex].cid, (CellId){x, y}};
         unsigned int neighborsCount = countNeighbors(cda, gcid);
         if (neighborsCount == 3) {
           getCell(cda, gcid)->alive_next_gen = true;
@@ -270,9 +279,7 @@ void calculateNextGen(ChunkDynamicArray cda) {
         } else {
           getCell(cda, gcid)->alive_next_gen = false;
         }
-        printf("%d", neighborsCount);
       }
-      printf("\n");
     }
   }
 }
@@ -281,9 +288,77 @@ void applyNextGen(ChunkDynamicArray cda) {
   for (int chunkIndex = 0; chunkIndex < cda.count; ++chunkIndex) {
     for (int y = 0; y < CHUNK_SIZE; ++y) {
       for (int x = 0; x < CHUNK_SIZE; ++x) {
-        GlobalCellId gcid = (GlobalCellId){cda.items[chunkIndex].cid, (CellId){x, y}};
+        GlobalCellId gcid =
+            (GlobalCellId){cda.items[chunkIndex].cid, (CellId){x, y}};
         Cell *cell = getCell(cda, gcid);
         cell->alive = cell->alive_next_gen;
+      }
+    }
+  }
+}
+Chunk *cdaAddChunk(ChunkDynamicArray cda[static 1], ChunkId cid) {
+  Cell *cells = malloc(CHUNK_SIZE * CHUNK_SIZE * sizeof(Cell));
+  if (cells == NULL) {
+    fprintf(stderr, "Couldn't allocate, buy more RAM\n");
+    exit(1);
+  }
+  memset(cells, 0, CHUNK_SIZE * CHUNK_SIZE * sizeof(Cell));
+  return cdaAppend(cda, (Chunk){.cid = cid, .cells = cells});
+}
+
+Vector2i vector2iAdd(Vector2i a, Vector2i b) {
+  return (Vector2i){a.x + b.x, a.y + b.y};
+}
+
+#define VECTOR2I_UP ((Vector2i){0, -1})
+#define VECTOR2I_LEFT ((Vector2i){-1, 0})
+#define VECTOR2I_RIGHT ((Vector2i){1, 0})
+#define VECTOR2I_DOWN ((Vector2i){0, 1})
+
+void growChunksIfNeeded(ChunkDynamicArray *cda) {
+  size_t currentChunkCount = cda->count;
+  for (int chunkIndex = 0; chunkIndex < currentChunkCount; ++chunkIndex) {
+    Chunk currentChunk = cda->items[chunkIndex];
+    // up
+    ChunkId upChunkId = vector2iAdd(currentChunk.cid, VECTOR2I_UP);
+    if (cdaFind(*cda, upChunkId) == NULL) {
+      for (size_t x = 0; x < CHUNK_SIZE; x++) {
+        if (currentChunk.cells[cellIdToIndex((CellId){x, 0})].alive) {
+          cdaAddChunk(cda, upChunkId);
+          break;
+        }
+      }
+    }
+    // down
+    ChunkId downChunkId = vector2iAdd(currentChunk.cid, VECTOR2I_UP);
+    if (cdaFind(*cda, downChunkId) == NULL) {
+      for (size_t x = 0; x < CHUNK_SIZE; x++) {
+        if (currentChunk.cells[cellIdToIndex((CellId){x, CHUNK_SIZE - 1})]
+                .alive) {
+          cdaAddChunk(cda, downChunkId);
+          break;
+        }
+      }
+    }
+    // left
+    ChunkId leftChunkId = vector2iAdd(currentChunk.cid, VECTOR2I_UP);
+    if (cdaFind(*cda, leftChunkId) == NULL) {
+      for (size_t y = 0; y < CHUNK_SIZE; y++) {
+        if (currentChunk.cells[cellIdToIndex((CellId){0, y})].alive) {
+          cdaAddChunk(cda, leftChunkId);
+          break;
+        }
+      }
+    }
+    // right
+    ChunkId rightChunkId = vector2iAdd(currentChunk.cid, VECTOR2I_UP);
+    if (cdaFind(*cda, rightChunkId) == NULL) {
+      for (size_t y = 0; y < CHUNK_SIZE; y++) {
+        if (currentChunk.cells[cellIdToIndex((CellId){CHUNK_SIZE - 1, y})]
+                .alive) {
+          cdaAddChunk(cda, rightChunkId);
+          break;
+        }
       }
     }
   }
@@ -300,15 +375,21 @@ int main(void) {
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
       Vector2 screenMousePosition = GetMousePosition();
-      Vector2 worldMousePosition = GetScreenToWorld2D(screenMousePosition, camera);
+      Vector2 worldMousePosition =
+          GetScreenToWorld2D(screenMousePosition, camera);
       GlobalCellId clickedGlobalCellId = getGlobalCellId(worldMousePosition);
-      printf("Chunk(%d, %d), Cell(%d, %d)\n", clickedGlobalCellId.chunkId.x, clickedGlobalCellId.chunkId.y, clickedGlobalCellId.cellId.x, clickedGlobalCellId.cellId.y);
       toggleCellState(&cda, clickedGlobalCellId);
     }
 
     if (IsKeyPressed(KEY_SPACE)) {
+      growChunksIfNeeded(&cda);
       calculateNextGen(cda);
       applyNextGen(cda);
+    }
+
+    if (IsKeyPressed(KEY_R)) {
+      cdaFree(cda);
+      cda = cdaInit();
     }
 
     BeginDrawing();
